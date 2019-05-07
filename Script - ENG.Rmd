@@ -1,0 +1,126 @@
+---
+title: "Image recognition"
+output: html_document
+---
+```{r Setting the path with images}
+# Setting global path for all chunks
+knitr::opts_knit$set(root.dir = "~/Users/rafalmanda/Desktop/Studia Magisterka/Data Science - materiały/Image recognition ENG/Data")
+
+```
+
+```{r Loading  required packages}
+# Load keras package for deeplearning and EPImage for image handling
+library(keras)
+library(EBImage)
+
+# Loading and displaying first image
+image <- EBImage::readImage('gruszka1.jpg')
+EBImage::display(image)
+```
+
+```{r Creating vector of image names and loading it into R}
+# Create vector names
+pics <- c('gruszka1.jpg', 'gruszka2.jpg', 'gruszka3.jpg', 'gruszka4.jpg', 'gruszka5.jpg', 
+          'gruszka6.jpeg', 'gruszka7.jpeg', 'gruszka8.jpg', 'gruszka9.jpg', 'gruszka10.jpg', 
+          'jablko1.jpg', 'jablko2.jpg', 'jablko3.jpg', 'jablko4.jpg', 'jablko5.jpg',
+          'jablko6.jpg', 'jablko7.jpg', 'jablko8.jpg', 'jablko9.jpg', 'jablko10.jpg')
+
+# Init an empty list
+mypics <- list()
+
+# Load all images
+for (i in 1:length(pics)){mypics[[i]] <- readImage(pics[i])}
+
+# Check structure and display random image
+str(mypics)
+EBImage::display(mypics[[14]])
+```
+
+```{r Normalizing shape}
+# Changing shape of every image to 28 per 28 px
+for (i in 1:length(pics)){mypics[[i]] <- resize(mypics[[i]],28,28)}
+str(mypics)
+EBImage::display(mypics[[14]])
+```
+
+
+```{r Changing structure of image }
+# Change structure of image, decomposition for 3 layers, each of them describes intensity of RGB colours
+for (i in length(pics)) {mypics[[i]] <- array_reshape(mypics[[i]],c(28,28,3))}
+str(mypics)
+EBImage::display(mypics[[14]])
+```
+
+```{r Creating training set}
+# Pick first 8 pears
+X_train <- NULL
+for (i in 1:8){X_train <- rbind(X_train, mypics[[i]])} 
+str(X_train)
+
+# Add 8 apples
+for (i in 11:18){X_train <- rbind(X_train, mypics[[i]])} # first 8 cars
+str(X_train)
+```
+
+```{r Creating test set and adding categories}
+# Putting other data to test set
+X_test <- rbind(mypics[[9]], mypics[[10]], mypics[[19]], mypics[[20]])
+str(X_test)
+
+# Class assingment
+y_train <- c(rep(0,8),rep(1,8)) # 0 <- pear; 1 <- apple
+y_test <- c(0,0,1,1)
+
+# Conversion of numeric variables into categorical 
+trainLabels <- to_categorical(y_train)
+testLabels <- to_categorical(y_test)
+```
+
+```{r Building model}
+# Model initialization
+model <- keras_model_sequential()
+
+# Define layers of model and activation functions
+model %>%
+  layer_dense(units = 256, activation = 'relu', input_shape = c(2352)) %>%
+  layer_dense(units = 128, activation = 'relu') %>%
+  layer_dense(units = 2, activation = 'softmax')
+
+# Print model
+summary(model)
+
+# Setting learning rate
+sgd <- optimizer_sgd(lr = 0.01)
+
+# Model compilation
+model %>%
+  compile(loss = 'binary_crossentropy',
+          optimizer=sgd,
+          metrics = 'accuracy')
+
+# Fitting the model
+fitModel <- model %>%
+  fit(X_train,
+      trainLabels,
+      epochs = 30,
+      batch_size = 32,
+      validation_split = 0.2)
+
+plot(fitModel)
+
+# Model evaluation and predictions on training data
+model %>% evaluate(X_train, trainLabels)
+
+pred <- model %>% predict_classes(X_train)
+table(Predicted = pred, Actual = y_train)
+
+prob <- model %>% predict_proba(X_train)
+cbind(prob, Predited = pred, Actual = y_train)
+
+
+# Model evaluation and predictions on test data
+pred <- model %>% predict_classes(X_test)
+
+table(Predicted = pred, Actual = y_test)
+```
+
